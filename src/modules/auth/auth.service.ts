@@ -23,28 +23,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly dataSource: DataSource,
   ) {}
-  private async generateTokens(user: User) {
-    const payload: PayloadToken = {
-      sub: user.id,
-      email: user.email,
-      systemRole: user.systemRole,
-    };
 
-    const accessToken = await this.jwtService.signAsync(payload, {
-      expiresIn: Number(rootConfig.JWT_ACCESS_EXPIRES_IN),
-      secret: rootConfig.JWT_ACCESS_SECRET,
-    });
-
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      expiresIn: Number(rootConfig.JWT_REFRESH_EXPIRES_IN),
-      secret: rootConfig.JWT_REFRESH_SECRET,
-    });
-
-    return {
-      accessToken,
-      refreshToken,
-    };
-  }
   public async getProfileinfoUser({
     userId,
     email,
@@ -86,6 +65,7 @@ export class AuthService {
 
       .getOne();
   }
+
   // Sign In
   async signIn(data: SignInDto) {
     const { email, password } = data;
@@ -104,6 +84,7 @@ export class AuthService {
       user: validateUserResponse(user),
     };
   }
+
   // Refresh Tokens
   async refreshTokens(data: RefreshTokenDto) {
     try {
@@ -128,6 +109,7 @@ export class AuthService {
       throw new BadRequestException('Invalid refresh token');
     }
   }
+
   // profilr
   async getProfile(userId: number) {
     const user = await this.getProfileinfoUser({ userId });
@@ -137,6 +119,7 @@ export class AuthService {
 
     return validateUserResponse(user);
   }
+
   public async checkEmailExistInOrganization({
     userId,
     organizationId,
@@ -154,6 +137,7 @@ export class AuthService {
       .getCount();
     return count > 0;
   }
+
   async signUp(data: SignUpDto) {
     const { email, fullName, password, organizationId, orgnazitionRole } = data;
     return this.dataSource.transaction(async (manager) => {
@@ -196,5 +180,28 @@ export class AuthService {
       //  Return kết quả
       return user;
     });
+  }
+
+  private async generateTokens(user: User) {
+    const payload: PayloadToken = {
+      sub: user.id,
+      email: user.email,
+      systemRole: user.systemRole,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: Number(rootConfig.JWT_ACCESS_EXPIRES_IN),
+      secret: rootConfig.JWT_ACCESS_SECRET,
+    });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      expiresIn: Number(rootConfig.JWT_REFRESH_EXPIRES_IN),
+      secret: rootConfig.JWT_REFRESH_SECRET,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 }
