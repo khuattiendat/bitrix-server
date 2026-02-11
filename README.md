@@ -53,7 +53,7 @@ JWT_SECRET=your_super_secret_key
 Start the application with hot-reload for development:
 
 ```bash
-yarn start:dev
+yarn dev
 ```
 
 The server will start on `http://localhost:3000` (or your configured PORT)

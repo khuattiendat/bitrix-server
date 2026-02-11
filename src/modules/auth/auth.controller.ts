@@ -1,9 +1,8 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ResponseMessage } from '@/common/decorators/response-message.decorator';
 import { SignInDto } from './dto/singIn.dto';
 import { SignUpDto } from './dto/signUp.dto';
-import { UserRole } from '@/common/enum/user.enum';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RefreshTokenDto } from './dto/refreshToken.dto';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
@@ -18,6 +17,7 @@ export class AuthController {
   async signIn(@Body() data: SignInDto) {
     return this.authService.signIn(data);
   }
+      
   @Post('refresh-tokens')
   @ResponseMessage('Tokens refreshed successfully')
   async refreshTokens(@Body() data: RefreshTokenDto) {

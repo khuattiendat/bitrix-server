@@ -55,7 +55,14 @@ export class UserService {
       qb.orderBy('user.createdAt', 'DESC');
     }
 
-    return paginate(qb, page, limit);
+    const { data, meta } = await paginate(qb, page, limit);
+    const dataValidated = data.map((item) => {
+      return validateUserResponse(item as unknown as User);
+    });
+    return {
+      data: dataValidated,
+      meta,
+    };
   }
 
   async findOne(id: number) {

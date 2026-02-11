@@ -1,11 +1,5 @@
 import { OrganizationMemberRole } from '@/common/enum/organization.enum';
-import {
-  IsEmail,
-  IsEnum,
-  IsNotEmpty,
-  IsNumber,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, MinLength } from 'class-validator';
 
 export class SignUpDto {
   @IsEmail()
@@ -16,8 +10,11 @@ export class SignUpDto {
   password: string;
   @IsNotEmpty()
   fullName: string;
-  @IsNumber()
-  organizationId: number;
-  @IsEnum(OrganizationMemberRole)
-  orgnazitionRole: OrganizationMemberRole;
+  @IsOptional()
+  dateOfBirth: Date;
+  @IsNotEmpty()
+  organizations: {
+    id: number;
+    organizationRole: OrganizationMemberRole;
+  }[];
 }

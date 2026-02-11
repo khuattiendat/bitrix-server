@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { SignInDto } from './dto/singIn.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@/database/entities/user.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { SignUpDto } from './dto/signUp.dto';
 import { JwtService } from '@nestjs/jwt';
 import { PayloadToken } from '@/common/types/payloadToken.type';
@@ -139,15 +139,24 @@ export class AuthService {
   }
 
   async signUp(data: SignUpDto) {
-    const { email, fullName, password, organizationId, orgnazitionRole } = data;
+    const { email, fullName, password, dateOfBirth, organizations } = data;
     return this.dataSource.transaction(async (manager) => {
       // Check organization tồn tại
-      const organization = await this.organizationRepo.findOne({
-        where: { id: organizationId },
-      });
-      if (!organization) {
-        throw new BadRequestException('Organization not found');
-      }
+      const organizationIds = organizations.map((o) => o.id);
+      const existOrganizations = await this.organizationRepo.find({
+        where: { id: In(organizationIds) },
+  select: ['id'],
+});
+
+const existIds = new Set(existOrganizations.map(o => o.id));
+
+const notFoundId = organizationIds.find(id => !existIds.has(id));
+
+if (notFoundId) {
+  throw new BadRequestException(
+    `Organization with ID ${notFoundId} not found`,
+  );
+}
 
       // Lấy hoặc tạo user
       let user = await this.userRepo.findOne({ where: { email } });
@@ -157,6 +166,7 @@ export class AuthService {
           email,
           full_name: fullName,
           password: hashPassword,
+          dateOfBirth: dateOfBirth,
         });
       }
       // Check email tồn tại trong organization
