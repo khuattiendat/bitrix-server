@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { SignInDto } from './dto/singIn.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@/database/entities/user.entity';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { SignUpDto } from './dto/signUp.dto';
 import { JwtService } from '@nestjs/jwt';
 import { PayloadToken } from '@/common/types/payloadToken.type';
@@ -13,6 +13,7 @@ import { OrganizationMember } from '@/database/entities/organizationMember.entit
 import * as bcrypt from 'bcrypt';
 import { Organization } from '@/database/entities/organization.entity';
 import { validateUserResponse } from '@/common/utils/user.util';
+import { OrganizationMemberRole } from '@/common/enum/organization.enum';
 @Injectable()
 export class AuthService {
   constructor(
@@ -122,17 +123,17 @@ export class AuthService {
 
   public async checkEmailExistInOrganization({
     userId,
-    organizationId,
+    organizationIds,
   }: {
     userId: number;
-    organizationId: number;
+    organizationIds: number[];
   }): Promise<boolean> {
     const count = await this.userRepo
       .createQueryBuilder('user')
       .innerJoin('user.organizationMemberships', 'orgMember')
       .where('user.id = :userId', { userId })
-      .andWhere('orgMember.organization_id = :organizationId', {
-        organizationId,
+      .andWhere('orgMember.organization_id IN (:...organizationIds)', {
+        organizationIds,
       })
       .getCount();
     return count > 0;
@@ -140,56 +141,106 @@ export class AuthService {
 
   async signUp(data: SignUpDto) {
     const { email, fullName, password, dateOfBirth, organizations } = data;
+
     return this.dataSource.transaction(async (manager) => {
-      // Check organization tồn tại
+      // Validate organizations
       const organizationIds = organizations.map((o) => o.id);
-      const existOrganizations = await this.organizationRepo.find({
-        where: { id: In(organizationIds) },
-  select: ['id'],
-});
+      await this.validateOrganizations(organizationIds);
 
-const existIds = new Set(existOrganizations.map(o => o.id));
-
-const notFoundId = organizationIds.find(id => !existIds.has(id));
-
-if (notFoundId) {
-  throw new BadRequestException(
-    `Organization with ID ${notFoundId} not found`,
-  );
-}
-
-      // Lấy hoặc tạo user
-      let user = await this.userRepo.findOne({ where: { email } });
-      if (!user) {
-        const hashPassword = await bcrypt.hash(password, 10);
-        user = await manager.save(User, {
-          email,
-          full_name: fullName,
-          password: hashPassword,
-          dateOfBirth: dateOfBirth,
-        });
-      }
-      // Check email tồn tại trong organization
-      const isEmailExistInOrg = await this.checkEmailExistInOrganization({
-        userId: user.id,
-        organizationId,
+      // Create or fetch user
+      const user = await this.createOrFetchUser(manager, {
+        email,
+        fullName,
+        password,
+        dateOfBirth,
       });
-      if (isEmailExistInOrg) {
+
+      // Check if email exists in any organization
+      await this.ensureEmailNotInOrganizations(user.id, organizationIds);
+
+      // Add user to organizations
+      await this.addUserToOrganizations(manager, user, organizations);
+
+      return user;
+    });
+  }
+
+  private async validateOrganizations(organizationIds: number[]) {
+    const existOrganizations = await this.organizationRepo.find({
+      where: { id: In(organizationIds) },
+      select: ['id'],
+    });
+
+    const existIds = new Set(existOrganizations.map((o) => o.id));
+    const notFoundId = organizationIds.find((id) => !existIds.has(id));
+
+    if (notFoundId) {
+      throw new BadRequestException(
+        `Organization with ID ${notFoundId} not found`,
+      );
+    }
+  }
+
+  private async createOrFetchUser(
+    manager: EntityManager,
+    {
+      email,
+      fullName,
+      password,
+      dateOfBirth,
+    }: {
+      email: string;
+      fullName: string;
+      password: string;
+      dateOfBirth: Date;
+    },
+  ): Promise<User> {
+    let user = await this.userRepo.findOne({ where: { email } });
+    if (!user) {
+      const hashPassword = await bcrypt.hash(password, 10);
+      user = await manager.save(User, {
+        email,
+        fullName,
+        password: hashPassword,
+        dateOfBirth,
+      });
+    }
+    return user;
+  }
+
+  private async ensureEmailNotInOrganizations(
+    userId: number,
+    organizationIds: number[],
+  ) {
+    const isEmailExistInOrg = await this.checkEmailExistInOrganization({
+      userId,
+      organizationIds,
+    });
+    if (isEmailExistInOrg) {
+      throw new BadRequestException('Email already exists in the organization');
+    }
+  }
+
+  private async addUserToOrganizations(
+    manager: EntityManager,
+    user: User,
+    organizations: { id: number; organizationRole: OrganizationMemberRole }[],
+  ) {
+    for (const org of organizations) {
+      if (
+        !Object.values(OrganizationMemberRole).includes(org.organizationRole)
+      ) {
         throw new BadRequestException(
-          'Email already exists in the organization',
+          `Invalid organization role: ${org.organizationRole}`,
         );
       }
 
-      // Tạo organization member
       await manager.save(OrganizationMember, {
         user,
-        organization,
-        role: orgnazitionRole,
+        organization: { id: org.id } as Organization,
+        role: org.organizationRole,
       });
-
-      //  Return kết quả
-      return user;
-    });
+    }
   }
 
   private async generateTokens(user: User) {

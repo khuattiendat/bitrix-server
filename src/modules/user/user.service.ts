@@ -2,12 +2,13 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@/database/entities/user.entity';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { paginate } from '@/common/utils/paginate';
 import { USER_SORTABLE_FIELDS } from '@/common/constants/user.const';
 import { AuthService } from '../auth/auth.service';
 import { validateUserResponse } from '@/common/utils/user.util';
+import { OrganizationService } from '../organization/organization.service';
 
 @Injectable()
 export class UserService {
@@ -15,6 +16,8 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly authService: AuthService,
+    private readonly orgService: OrganizationService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(query: PaginationDto) {
@@ -94,11 +97,16 @@ export class UserService {
     return validateUserResponse(userDetail!);
   }
 
-  remove(id: number) {
-    const user = this.userRepo.findOne({ where: { id } });
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
-    return this.userRepo.softDelete(id);
+  async remove(id: number): Promise<void> {
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      const user = await this.userRepo.findOne({ where: { id } });
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      await this.orgService.removeUserFromAllOrganizations(id);
+
+      await manager.softDelete(User, id);
+    });
   }
 }

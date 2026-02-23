@@ -45,6 +45,13 @@ export class OrganizationService {
     }
     return paginate(qb, page, limit);
   }
+  async removeUserFromAllOrganizations(userId: number) {
+    return this.orgRepo
+      .createQueryBuilder()
+      .relation(Organization, 'members')
+      .of(userId)
+      .remove(userId);
+  }
 
   findOne(id: number) {
     return `This action returns a #${id} organization`;
