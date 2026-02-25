@@ -17,7 +17,7 @@ export class AuthController {
   async signIn(@Body() data: SignInDto) {
     return this.authService.signIn(data);
   }
-      
+
   @Post('refresh-tokens')
   @ResponseMessage('Tokens refreshed successfully')
   async refreshTokens(@Body() data: RefreshTokenDto) {
@@ -34,5 +34,11 @@ export class AuthController {
   @ResponseMessage('Signup successful')
   async signUp(@Body() data: SignUpDto) {
     return await this.authService.signUp(data);
+  }
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ResponseMessage('Logout successful')
+  async logout(@CurrentUser() user: PayloadToken) {
+    return await this.authService.logout(user.id!);
   }
 }

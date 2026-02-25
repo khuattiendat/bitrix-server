@@ -86,6 +86,9 @@ export class AuthService {
     };
   }
 
+  async logout(userId: number) {
+    return { message: 'Logout successful' };
+  }
   // Refresh Tokens
   async refreshTokens(data: RefreshTokenDto) {
     try {
@@ -154,6 +157,7 @@ export class AuthService {
         password,
         dateOfBirth,
       });
+      console.log('user', user);
 
       // Check if email exists in any organization
       await this.ensureEmailNotInOrganizations(user.id, organizationIds);
@@ -195,9 +199,24 @@ export class AuthService {
       dateOfBirth: Date;
     },
   ): Promise<User> {
-    let user = await this.userRepo.findOne({ where: { email } });
+    const hashPassword = await bcrypt.hash(password, 10);
+    let user = await this.userRepo.findOne({
+      where: { email },
+      withDeleted: true,
+    });
+    if (user && user.deletedAt) {
+      await manager.save(User, {
+        ...user,
+        deletedAt: null,
+        email: email,
+        fullName: fullName,
+        dateOfBirth: dateOfBirth,
+        password: hashPassword,
+        status: userStatus.ACTIVE,
+        organizationMemberships: [],
+      });
+    }
     if (!user) {
-      const hashPassword = await bcrypt.hash(password, 10);
       user = await manager.save(User, {
         email,
         fullName,
@@ -221,7 +240,7 @@ export class AuthService {
     }
   }
 
-  private async addUserToOrganizations(
+  async addUserToOrganizations(
     manager: EntityManager,
     user: User,
     organizations: { id: number; organizationRole: OrganizationMemberRole }[],

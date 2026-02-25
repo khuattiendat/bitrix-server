@@ -9,7 +9,8 @@ import { USER_SORTABLE_FIELDS } from '@/common/constants/user.const';
 import { AuthService } from '../auth/auth.service';
 import { validateUserResponse } from '@/common/utils/user.util';
 import { OrganizationService } from '../organization/organization.service';
-
+import * as bcrypt from 'bcrypt';
+import { UserRole, userStatus } from '@/common/enum/user.enum';
 @Injectable()
 export class UserService {
   constructor(
@@ -40,8 +41,12 @@ export class UserService {
         'user.fullName',
         'user.dateOfBirth',
         'user.systemRole',
+        'user.status',
         'user.createdAt',
       ])
+      .andWhere('user.systemRole != :systemRole', {
+        systemRole: UserRole.ADMIN,
+      })
       .addSelect(['avatar.id', 'avatar.url'])
       .addSelect(['member.id', 'member.role'])
       .addSelect(['org.id', 'org.name']);
@@ -79,17 +84,39 @@ export class UserService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    const { dateOfBirth, fullName, email } = updateUserDto;
+    const { dateOfBirth, fullName, email, organizations, password } =
+      updateUserDto;
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) {
       throw new BadRequestException('User not found');
     }
+    const emailExist = await this.userRepo.findOne({ where: { email } });
+    if (emailExist && emailExist.id !== id) {
+      throw new BadRequestException('Email already exists');
+    }
+    let hashPassword = null;
+    if (password) {
+      hashPassword = await bcrypt.hash(password, 10);
+    }
+    // upodate user info
     await this.userRepo.update(id, {
       ...user,
       dateOfBirth: dateOfBirth ?? user.dateOfBirth,
       fullName: fullName ?? user.fullName,
       email: email ?? user.email,
+      password: hashPassword ?? user.password,
     });
+    // update user organization
+    if (organizations) {
+      await this.dataSource.transaction(async (manager: EntityManager) => {
+        await this.orgService.removeUserFromAllOrganizations(manager, id);
+        await this.authService.addUserToOrganizations(
+          manager,
+          user,
+          organizations,
+        );
+      });
+    }
     const userDetail = await this.authService.getProfileinfoUser({
       userId: id,
     });
@@ -103,9 +130,11 @@ export class UserService {
       if (!user) {
         throw new BadRequestException('User not found');
       }
-
-      await this.orgService.removeUserFromAllOrganizations(id);
-
+      await this.orgService.removeUserFromAllOrganizations(manager, id);
+      await manager.save(User, {
+        ...user,
+        status: userStatus.INACTIVE,
+      });
       await manager.softDelete(User, id);
     });
   }

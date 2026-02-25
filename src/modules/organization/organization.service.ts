@@ -3,16 +3,19 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Organization } from '@/database/entities/organization.entity';
 import { ORGANIZATION_SORTABLE_FIELDS } from '@/common/constants/organization.const';
 import { paginate } from '@/common/utils/paginate';
+import { OrganizationMember } from '@/database/entities/organizationMember.entity';
 
 @Injectable()
 export class OrganizationService {
   constructor(
     @InjectRepository(Organization)
     private readonly orgRepo: Repository<Organization>,
+    @InjectRepository(OrganizationMember)
+    private readonly orgMemberRepo: Repository<OrganizationMember>,
   ) {}
   create(createOrganizationDto: CreateOrganizationDto) {
     return 'This action adds a new organization';
@@ -28,7 +31,14 @@ export class OrganizationService {
     } = query;
     const qb = this.orgRepo
       .createQueryBuilder('organization')
-      .select(['organization.id', 'organization.name', 'organization.address']);
+      .select([
+        'organization.id',
+        'organization.name',
+        'organization.address',
+        'organization.taxCode',
+        'organization.createdAt',
+        'organization.status',
+      ]);
 
     if (search?.trim()) {
       qb.andWhere(
@@ -45,12 +55,13 @@ export class OrganizationService {
     }
     return paginate(qb, page, limit);
   }
-  async removeUserFromAllOrganizations(userId: number) {
-    return this.orgRepo
+  async removeUserFromAllOrganizations(manager: EntityManager, userId: number) {
+    await manager
       .createQueryBuilder()
-      .relation(Organization, 'members')
-      .of(userId)
-      .remove(userId);
+      .delete()
+      .from(OrganizationMember)
+      .where('user_id = :userId', { userId })
+      .execute();
   }
 
   findOne(id: number) {
