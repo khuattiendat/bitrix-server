@@ -157,8 +157,6 @@ export class AuthService {
         password,
         dateOfBirth,
       });
-      console.log('user', user);
-
       // Check if email exists in any organization
       await this.ensureEmailNotInOrganizations(user.id, organizationIds);
 

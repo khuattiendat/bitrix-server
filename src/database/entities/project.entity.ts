@@ -51,7 +51,10 @@ export class Project extends BaseEntity {
   @OneToMany(() => ProjectMember, (member) => member.project)
   members: ProjectMember[];
   // relations with tasks
-  @OneToMany(() => Task, (task) => task.project)
+  @OneToMany(() => Task, (task) => task.project, {
+    cascade: ['insert', 'update'],
+    orphanedRowAction: 'delete',
+  })
   tasks: Task[];
   // realtion with feed posts
   @OneToMany(() => FeedPost, (post) => post.project)

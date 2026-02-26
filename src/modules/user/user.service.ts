@@ -52,9 +52,12 @@ export class UserService {
       .addSelect(['org.id', 'org.name']);
 
     if (search?.trim()) {
-      qb.andWhere('(user.email LIKE :keyword OR user.fullName LIKE :keyword)', {
-        keyword: `%${search.trim()}%`,
-      });
+      qb.andWhere(
+        '(user.email LIKE :keyword OR user.fullName LIKE :keyword OR org.name LIKE :keyword)',
+        {
+          keyword: `%${search.trim()}%`,
+        },
+      );
     }
 
     if (USER_SORTABLE_FIELDS.includes(sortBy)) {
