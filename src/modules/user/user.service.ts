@@ -11,6 +11,7 @@ import { validateUserResponse } from '@/common/utils/user.util';
 import { OrganizationService } from '../organization/organization.service';
 import * as bcrypt from 'bcrypt';
 import { UserRole, userStatus } from '@/common/enum/user.enum';
+import { OrganizationStatus } from '@/common/enum/organization.enum';
 @Injectable()
 export class UserService {
   constructor(
@@ -140,5 +141,39 @@ export class UserService {
       });
       await manager.softDelete(User, id);
     });
+  }
+  async checkOrganizationMembership(orgId: number, userId: number) {
+    const user = await this.userRepo.findOne({
+      relations: [
+        'organizationMemberships',
+        'organizationMemberships.organization',
+      ],
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const member = user.organizationMemberships.find(
+      (membership) => membership.organization.id === orgId,
+    );
+    if (!member) {
+      throw new BadRequestException(
+        'User does not belong to this organization',
+      );
+    }
+    const { address, name, id, taxCode, status } = member.organization;
+    if (status === OrganizationStatus.SUSPENDED) {
+      throw new BadRequestException('Organization is suspended');
+    }
+    const organizationRole = member.role;
+    const organization = {
+      id,
+      name,
+      taxCode,
+      address,
+      status,
+      organizationRole,
+    };
+    return organization;
   }
 }

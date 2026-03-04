@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesSystemGuard } from '@/common/guards/roles.guard';
 import { UserRole } from '@/common/enum/user.enum';
 import { RoleSystem } from '@/common/decorators/roles.decorator';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { PayloadToken } from '@/common/types/payloadToken.type';
 
 @Controller('users')
 export class UserController {
@@ -47,5 +49,15 @@ export class UserController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: string) {
     return this.userService.remove(+id);
+  }
+  // check organization
+  @UseGuards(JwtAuthGuard)
+  @Get('check-organization/:orgId')
+  checkOrganizationMembership(
+    @Param('orgId', ParseIntPipe) orgId: number,
+    @CurrentUser() user: PayloadToken,
+  ) {
+    const userId = user.id;
+    return this.userService.checkOrganizationMembership(orgId, userId!);
   }
 }
