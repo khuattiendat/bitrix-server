@@ -12,15 +12,23 @@ import { rootConfig } from '@/configs/const.config';
 import { RolesSystemGuard } from '@/common/guards/roles.guard';
 import { OrganizationMember } from '@/database/entities/organizationMember.entity';
 import { Organization } from '@/database/entities/organization.entity';
+import { PasswordReset } from '@/database/entities/passwordReset.entity';
+import { MailModule } from '../mail/mail.module';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, OrganizationMember, Organization]),
+    TypeOrmModule.forFeature([
+      User,
+      OrganizationMember,
+      Organization,
+      PasswordReset,
+    ]),
     JwtModule.register({
       secret: rootConfig.JWT_ACCESS_SECRET,
       signOptions: {
         expiresIn: rootConfig.JWT_ACCESS_EXPIRES_IN as number,
       },
     }),
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [

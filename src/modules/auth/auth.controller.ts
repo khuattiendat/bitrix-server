@@ -7,6 +7,8 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RefreshTokenDto } from './dto/refreshToken.dto';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PayloadToken } from '@/common/types/payloadToken.type';
+import { ForgotPasswordDto } from './dto/forgotPassword.dto';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -38,7 +40,17 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ResponseMessage('Logout successful')
-  async logout(@CurrentUser() user: PayloadToken) {
-    return await this.authService.logout(user.id!);
+  logout(@CurrentUser() user: PayloadToken) {
+    return this.authService.logout(user.id!);
+  }
+  @Post('forgot-password')
+  @ResponseMessage('Password reset link sent successfully')
+  async forgotPassword(@Body() data: ForgotPasswordDto) {
+    return await this.authService.forgotPassword(data);
+  }
+  @Post('reset-password')
+  @ResponseMessage('Password reset successful')
+  async resetPassword(@Body() data: ResetPasswordDto) {
+    return await this.authService.resetPassword(data);
   }
 }

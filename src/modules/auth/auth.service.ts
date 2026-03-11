@@ -14,6 +14,13 @@ import * as bcrypt from 'bcrypt';
 import { Organization } from '@/database/entities/organization.entity';
 import { validateUserResponse } from '@/common/utils/user.util';
 import { OrganizationMemberRole } from '@/common/enum/organization.enum';
+import { ForgotPasswordDto } from './dto/forgotPassword.dto';
+import { PasswordReset } from '@/database/entities/passwordReset.entity';
+import { v7 as uuidv7 } from 'uuid';
+import { InjectQueue } from '@nestjs/bull';
+import { QueueName } from '../queues/queue.const';
+import { Queue } from 'bull';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 @Injectable()
 export class AuthService {
   constructor(
@@ -21,6 +28,9 @@ export class AuthService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Organization)
     private readonly organizationRepo: Repository<Organization>,
+    @InjectRepository(PasswordReset)
+    private readonly passwordResetRepo: Repository<PasswordReset>,
+    @InjectQueue(QueueName.MAIL_QUEUE) private readonly mailQueue: Queue,
     private readonly jwtService: JwtService,
     private readonly dataSource: DataSource,
   ) {}
@@ -86,8 +96,56 @@ export class AuthService {
     };
   }
 
-  async logout(userId: number) {
-    return { message: 'Logout successful' };
+  logout(userId: number) {
+    return { message: `Logout successful by ${userId}` };
+  }
+  async forgotPassword(data: ForgotPasswordDto) {
+    const { email } = data;
+    const checkEmailExits = await this.userRepo.findOne({ where: { email } });
+    if (!checkEmailExits) {
+      throw new BadRequestException('Email not found');
+    }
+    const resetToken = uuidv7();
+    void this.passwordResetRepo.save({
+      email,
+      token: resetToken,
+      expiresAt: new Date(Date.now() + 3600000), // 1 hour expiration
+    });
+    await this.mailQueue.add(
+      QueueName.FORGOT_PASSWORD_JOB,
+      {
+        email,
+        token: resetToken,
+      },
+      {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000, // 5 seconds
+        },
+      },
+    );
+
+    return { message: 'Password reset link sent successfully' };
+  }
+  async resetPassword(data: ResetPasswordDto) {
+    const { token, newPassword } = data;
+    const passwordReset = await this.passwordResetRepo.findOne({
+      where: { token },
+    });
+    if (!passwordReset || passwordReset.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired token');
+    }
+    const user = await this.userRepo.findOne({
+      where: { email: passwordReset.email },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    user.password = await bcrypt.hash(newPassword, 10);
+    await this.userRepo.save(user);
+    await this.passwordResetRepo.delete({ id: passwordReset.id });
+    return { message: 'Password reset successful' };
   }
   // Refresh Tokens
   async refreshTokens(data: RefreshTokenDto) {
@@ -109,7 +167,7 @@ export class AuthService {
       return {
         tokens,
       };
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Invalid refresh token');
     }
   }

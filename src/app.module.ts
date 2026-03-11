@@ -9,7 +9,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ThrottlerModule } from '@nestjs/throttler';
-
+import { BullModule } from '@nestjs/bull';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { rootConfig } from './configs/const.config';
+import { mailerConfig } from './configs/mailer.config';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
@@ -22,6 +25,13 @@ import { ThrottlerModule } from '@nestjs/throttler';
         },
       ],
     }),
+    BullModule.forRoot({
+      redis: {
+        host: rootConfig.REDIS_HOST,
+        port: rootConfig.REDIS_PORT,
+      },
+    }),
+    MailerModule.forRoot({ ...mailerConfig }),
     AuthModule,
     UserModule,
     OrganizationModule,
@@ -42,5 +52,4 @@ import { ThrottlerModule } from '@nestjs/throttler';
     },
   ],
 })
-export class AppModule {
-}
+export class AppModule {}
