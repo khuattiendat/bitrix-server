@@ -13,6 +13,7 @@ import { BullModule } from '@nestjs/bull';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { rootConfig } from './configs/const.config';
 import { mailerConfig } from './configs/mailer.config';
+import { ProjectsModule } from './modules/projects/projects.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
@@ -35,6 +36,7 @@ import { mailerConfig } from './configs/mailer.config';
     AuthModule,
     UserModule,
     OrganizationModule,
+    ProjectsModule,
   ],
   controllers: [],
   providers: [

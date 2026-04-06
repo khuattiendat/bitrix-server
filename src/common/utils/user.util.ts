@@ -1,7 +1,7 @@
 import { User } from '@/database/entities/user.entity';
 
 export const validateUserResponse = (user: User) => {
-  const { organizationMemberships, ...rest } = user;
+  const { organizationMemberships, password, ...rest } = user;
   const organizations = organizationMemberships.map((membership) => {
     return {
       id: membership.organization.id,

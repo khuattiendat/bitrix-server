@@ -301,21 +301,25 @@ export class AuthService {
     user: User,
     organizations: { id: number; organizationRole: OrganizationMemberRole }[],
   ) {
+    const validRoles = Object.values(OrganizationMemberRole);
+
     for (const org of organizations) {
-      if (
-        !Object.values(OrganizationMemberRole).includes(org.organizationRole)
-      ) {
+      if (!validRoles.includes(org.organizationRole)) {
         throw new BadRequestException(
           `Invalid organization role: ${org.organizationRole}`,
         );
       }
-
-      await manager.save(OrganizationMember, {
-        user,
-        organization: { id: org.id } as Organization,
-        role: org.organizationRole,
-      });
     }
+
+    await Promise.all(
+      organizations.map((org) =>
+        manager.save(OrganizationMember, {
+          user,
+          organization: { id: org.id } as Organization,
+          role: org.organizationRole,
+        }),
+      ),
+    );
   }
 
   private async generateTokens(user: User) {

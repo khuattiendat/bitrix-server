@@ -24,6 +24,7 @@ export class ProjectMember {
     name: 'joined_at',
     nullable: false,
     type: 'datetime',
+    default: () => 'CURRENT_TIMESTAMP',
   })
   joinedAt: Date;
   // relations with projects

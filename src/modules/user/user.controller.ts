@@ -60,4 +60,12 @@ export class UserController {
     const userId = user.id;
     return this.userService.checkOrganizationMembership(orgId, userId!);
   }
+  // @Put('update-avatar')
+  // @UseGuards(JwtAuthGuard)
+  // updateAvatar(
+  //   @CurrentUser() user: PayloadToken,
+  //   @Body('avatarId', ParseIntPipe) avatarId: number,
+  // ) {
+  //   return this.userService.updateAvatar(user.id!, avatarId);
+  // }
 }

@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { FileStoreType } from '@/common/enum/file.enum';
 import { BaseEntity } from '@/common/base/base.entity';
 import { Organization } from '@/database/entities/organization.entity';
